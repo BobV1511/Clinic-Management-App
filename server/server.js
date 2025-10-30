@@ -22,18 +22,38 @@ let records = [
 
 // ===== ROUTES =====
 // Appointments
-app.get("/api/appointments", (req, res) => res.json(appointments));
-app.post("/api/appointments/cancel/:id", (req, res) => {
+// GET danh sách
+app.get("/api/appointments", (req,res)=> res.json(appointments));
+
+// POST cancel/:id
+app.post("/api/appointments/cancel/:id", (req,res)=>{
   const id = Number(req.params.id);
-  appointments = appointments.map(a => a.id === id ? { ...a, status: "cancelled" } : a);
-  res.json({ ok: true });
+  const idx = appointments.findIndex(a=>a.id===id);
+  if(idx<0) return res.status(404).json({error:"Not found"});
+  appointments[idx].status = "canceled";
+  console.log("[CANCEL]", appointments[idx]);
+  return res.json({ok:true});
 });
-app.post("/api/appointments/reschedule/:id", (req, res) => {
+
+// POST reschedule/:id  (kèm check double-book basic)
+app.post("/api/appointments/reschedule/:id", (req,res)=>{
   const id = Number(req.params.id);
-  // demo: dời 30 phút
-  appointments = appointments.map(a => a.id === id ? { ...a, time: "2025-11-01 11:30" } : a);
-  res.json({ ok: true });
+  const { newTime } = req.body||{};
+  if(!newTime) return res.status(400).json({error:"newTime required"});
+
+  const idx = appointments.findIndex(a=>a.id===id);
+  if(idx<0) return res.status(404).json({error:"Not found"});
+
+  // mock avoid double-book: không cho 2 slot trùng time nếu status !== canceled
+  const hasConflict = appointments.some(a=>a.id!==id && a.time===newTime && a.status!=="canceled");
+  if(hasConflict) return res.status(409).json({error:"time conflict"});
+
+  appointments[idx].time = newTime;
+  appointments[idx].status = "booked";
+  console.log("[RESCHEDULE]", appointments[idx]);
+  return res.json({ok:true});
 });
+
 
 // Records
 app.get("/api/records", (req, res) => res.json(records));
